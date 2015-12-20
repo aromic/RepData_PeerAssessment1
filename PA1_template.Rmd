@@ -1,25 +1,152 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
-
+#"Reproducible Research: Peer Assessment 1"
 
 ## Loading and preprocessing the data
-
+1. The function read.csv is used to load the data into a data frame.
+```{r, cache=TRUE, echo=TRUE} 
+DF <- read.csv("activity.csv" , sep =',' , header = TRUE)
+```
 
 
 ## What is mean total number of steps taken per day?
+1. Calculate the total number of steps taken per day.
+```{r} 
+nSteps <-vector()
+for (i in unique(DF$date))
+{
+  nSteps <- append(nSteps , sum(DF$steps[DF$date == i] , na.rm = TRUE) ) 
+}
+sum(nSteps)
+head(nSteps)
+```
 
+2. Make a histogram of the total number of steps taken each day.
+```{r}
+hist(nSteps , main = "Total number of steps taken each day" , xlab = "Number of steps")
+```
 
+3.Calculate and report the mean and median of the total number of steps taken per day.
+
+```{r}
+mean(nSteps)
+
+median(nSteps)
+```
 
 ## What is the average daily activity pattern?
+1. Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+```{r}
+Intervals <- unique(DF$interval)
+mSteps <- vector()
+for (j in Intervals)
+{
+  mSteps <- append(mSteps,mean(DF$steps[DF$interval==j] , na.rm = TRUE))
+}
+plot(Intervals, mSteps, type = "l" , xlab = "Intervals" , ylab = "Average Number of Steps", 
+     main = "The average number of steps")
+```
 
+2.Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
 
+```{r}
+maxId <-vector()
+for( ii in 1:length(unique(DF$interval)) )
+{
+  if (mSteps[ii] == max(mSteps))
+  {
+    maxId <- Intervals[ii]
+  }
+}
+maxId
+```
+Therefore, the 835th time interval contains the maximumm number of steps, in average.
 
 ## Imputing missing values
+1. Calculate and report the total number of missing values in the dataset.
 
+```{r}
+sum(!is.na(DF$steps))
+```
 
+2.Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
 
-## Are there differences in activity patterns between weekdays and weekends?
+For this part, missing values are replaced with the mean of number of steps over the 5-min intervals.
+
+```{r}
+df1 <- replace(DF$steps , is.na(DF$steps) , mean(mSteps))
+```
+
+3.Create a new dataset that is equal to the original dataset but with the missing data filled in.
+```{r}
+NewDF <- data.frame(df1 , DF$date , DF$interval)
+colnames(NewDF)<- c("steps", "date", "interval")
+head(NewDF)
+```
+
+4.Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+```{r}
+nnSteps <-vector()
+for (i in unique(DF$date))
+{
+  nnSteps <- append(nnSteps , sum(NewDF$steps[NewDF$date == i]) ) 
+}
+sum(nnSteps)
+hist(nnSteps , main = "Total number of steps taken each day 2" , xlab = "Number of steps")
+```
+
+The mean and median total number of steps per day are as follows:
+```{r}
+mean(nnSteps)
+
+median(nnSteps)
+```
+
+Here the missing values, that have been treated as zero before, are replaced with the average number of steps over intervals. Therefore, the total number of steps taken each day has increased. As a result, the mean has increased as well. Also, it causes a change in the median too.
+
+## Are there differences in activity patterns between weekDays and weekends?
+1.Create a new factor variable in the dataset with two levels – “weekDay” and “weekend” indicating whether a given date is a weekDay or weekend day.
+
+```{r}
+weekDay <- as.Date(NewDF$date)
+weekDay <- weekdays(weekDay)
+for(jj in 1:length(weekDay))
+{
+  if (weekDay[jj] =="Saturday" | weekDay[jj] == "Sunday")
+  {
+    weekDay[jj] <- "weekend"
+  }
+  else
+  {
+    weekDay[jj] <- "weekDay"
+  }
+}
+NewDF$weekDay <- factor(weekDay)
+levels(NewDF$weekDay) <- c("weekDay" , "weekend")
+head(NewDF)
+sum (NewDF$weekDay == "weekend") + sum(NewDF$weekDay == "weekDay")
+```
+
+2.Make a panel plot containing a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekDay days or weekend days (y-axis). 
+For this part, first calculate teh average number of steps across all intervals.
+```{r}
+aStep <- vector()
+aInt <- vector()
+aWeek <- vector()
+for(i in unique(NewDF$interval))
+{
+  for(t in levels(NewDF$weekDay))
+  {
+    aStep <- append(aStep , mean(NewDF$steps[NewDF$interval == i & NewDF$weekDay== t]))
+    aInt <- append( aInt , i)
+    aWeek <- append(aWeek , t)
+  }
+}
+```
+
+Then make the plot using Lattic:
+
+```{r}
+library(lattice) 
+xyplot(aStep ~ aInt | aWeek, main="The average number of steps taken"  , 
+       xlab = "Intervals" , ylab = "Number of steps"  , type='l' , layout = c(1,2))
+```
